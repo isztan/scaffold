@@ -1,7 +1,7 @@
 DOMaker
 ==========
 
-Document Object Maker - Write your DOM in data, not strings.
+Document Object Maker - Create your DOM from data, not strings.
 
 * Create complex DOM structures easily and efficiently
 * Keep handles to ID'd, referenced, named, classed, and labeled elements
