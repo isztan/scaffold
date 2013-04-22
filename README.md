@@ -3,7 +3,7 @@ DOMaker
 
 Document Object Maker - Create your DOM from data, not strings.
 
-* Create complex DOM structures easily and efficiently
+* Create complex DOM structures easily and efficiently without writing HTML
 * Keep handles to ID'd, referenced, named, classed, and labeled elements
 * Allow serialization of existing DOM
 
