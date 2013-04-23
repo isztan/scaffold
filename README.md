@@ -55,10 +55,6 @@ All of the following are equivalent and return a new instance of DOMBuilder.
     new DOMBuilder([ 'div', ['span', ...], ['span', ...], ...]);
     new DOMBuilder( 'div', ['span', ...], ['span', ...] );
 
-Additionally, a JSON string containing an array can be used with the load method.
-
-    DOMBuilder.load( "[ 'div', ['span', ...], ['span', ...], ...]" );
-
 The returned DOMBuilder instance has the following properties and property aliases:
 
 * `element`
