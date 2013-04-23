@@ -113,9 +113,9 @@ Renders to...
 
     <div>
       <span id="title" class="title-text">Sign In Box</span>
-      <input type="text" name="username" value="foo" />
-      <input type="password" name="password" value="bar" />
-      <span class="help-text">Enter your username and password, please.</span>
+      <input type="text" name="username" value="foo" data-serialize-label="inputs" />
+      <input type="password" name="password" value="bar" data-serialize-label="inputs" />
+      <span class="help-text" data-serialize-reffed="help">Enter your username and password, please.</span>
     </div>
 
 The outer most div can be accessed via the `element` property of the returned DOMBuilder instance.
