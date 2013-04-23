@@ -894,7 +894,7 @@
 	};
 	Class.prototype._isVoidTag = function( tag )
 	{
-		return !(/^area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr$/).test( tag );
+		return (/^area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr$/).test( tag );
 	};
 	Class.prototype._reservedTag = function( tag )
 	{
