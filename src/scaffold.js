@@ -1,12 +1,15 @@
 "use strict";
 
-var fn; /// require ../node_modules/bluejeansandrain.core/src/function.js
+var classify; /// require ../node_modules/bluejeansandrain.core/src/function.classify.js
+var varg; /// require ../node_modules/bluejeansandrain.core/src/function.varg.js
 
 /// target none
-	fn = require('bluejeansandrain.core').fn;
+	var core = require('bluejeansandrain.core');
+	classify = core.fn.classify;
+	varg = core.fn.varg;
 // target
 
-var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
+var Scaffold = classify(function Scaffold(/* [document], template... */)
 {
 	this.r = this['#'] = this['&'] = this.ref = {};
 	this.n = this['@'] = this.named = {};
@@ -79,13 +82,13 @@ var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
 
 	// Generate a scaffold data structure from the root element and all its
 	// children.
-	serialize: fn.args({}, function(options)
+	serialize: varg({}, function(options)
 	{
 		return this._serializeElement(options, this.element);
 	}),
 
 	// Build an HTML string from the scaffold root element and all its children.
-	stringify: fn.args({}, function(options)
+	stringify: varg({}, function(options)
 	{
 		var serialized = this.serialize({
 			plainTag: true,
@@ -103,7 +106,7 @@ var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
 
 	// Index the element based on its class, scaffold label, id/scaffold
 	// reference, and name.
-	_indexElement: fn.args(null, {}, function(element, attrs)
+	_indexElement: function(element, attrs)
 	{
 		if (attrs.hasOwnProperty('class'))
 			this._addClassed(attrs['class'].split(/\s+/g), element);
@@ -115,7 +118,7 @@ var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
 			this._addReffed(attrs.id, element);
 		if (attrs.hasOwnProperty('name'))
 			this._addNamed(attrs.name, element);
-	}),
+	},
 
 	// Generate HTML text from a scaffold data structure.
 	_renderSerialized: function(opts, serial)
