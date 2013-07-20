@@ -1,6 +1,6 @@
 "use strict";
 
-var fn; /// require npm_modules/bluejeansandrain.core/src/function.js
+var fn; /// require ../node_modules/bluejeansandrain.core/src/function.js
 
 /// target none
 	fn = require('bluejeansandrain.core').fn;

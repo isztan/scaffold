@@ -2,7 +2,7 @@
   "name": "bluejeansandrain.scaffold",
   "version": "0.1.0",
   "description": "DOM creation and serialization system.",
-  "main": "index.js",
+  "main": "src/scaffold.js",
   "dependencies": {
 	"bluejeansandrain.core": "0.4.x"
   },
