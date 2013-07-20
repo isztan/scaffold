@@ -7,7 +7,7 @@ var varg; /// require ../node_modules/bluejeansandrain.core/src/function.varg.js
 	var core = require('bluejeansandrain.core');
 	classify = core.fn.classify;
 	varg = core.fn.varg;
-// target
+/// target
 
 var Scaffold = classify(function Scaffold(/* [document], template... */)
 {

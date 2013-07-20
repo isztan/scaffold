@@ -1,10 +1,10 @@
 {
   "name": "bluejeansandrain.scaffold",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "DOM creation and serialization system.",
   "main": "src/scaffold.js",
   "dependencies": {
-	"bluejeansandrain.core": "0.4.x"
+    "bluejeansandrain.core": "0.5.x"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
