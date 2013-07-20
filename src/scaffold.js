@@ -1,9 +1,9 @@
 "use strict";
 
-var fn; /// require core/src/function.js
+var fn; /// require npm_modules/bluejeansandrain.core/src/function.js
 
 /// target none
-	fn = require('./core/src/function.js');
+	fn = require('bluejeansandrain.core').fn;
 // target
 
 var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
