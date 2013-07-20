@@ -1,64 +1,44 @@
-(function( global )
+"use strict";
+
+var fn; /// require core/src/function.js
+
+/// target none
+	fn = require('./core/src/function.js');
+// target
+
+var Scaffold = fn.classify(function Scaffold(/* [document], template... */)
 {
-	"use strict";
+	this.r = this['#'] = this['&'] = this.ref = {};
+	this.n = this['@'] = this.named = {};
+	this.l = this[':'] = this.labeled = {};
+	this.c = this['.'] = this.classed = {};
 
-	function Class()
-	{
-		if ( !( this instanceof Class ) )
-			// Called statically.
-			return new Class( arguments );
+	var templateIndex = 0;
 
-		this.r = this['#'] = this['&'] = this.ref = {};
-		this.n = this['@'] = this.named = {};
-		this.l = this[':'] = this.labeled = {};
-		this.c = this['.'] = this.classed = {};
+	// Document to be used for element creation. Also for "html", "head",
+	// and "body" element resolution.
+	if (this._isDocument(arguments[0]))
+		this.document = arguments[templateIndex++];
+	else if (this._isDocument(Scaffold.document))
+		this.document = Scaffold.document;
+	else if (typeof document !== 'undefined' && this._isDocument(document))
+		this.document = document;
+	else
+		throw new Error("Missing Document");
 
-		var params;
-		if ( arguments[0] instanceof arguments.constructor )
-			params = this.__params.apply( this, arguments[0] );
-		else
-			params = this.__params.apply( this, arguments );
+	var data = Array.prototype.slice.call(arguments, templateIndex);
+	if (data[0] instanceof Array)
+		data = data[0];
 
-		// Document to be used for element creation. Also for "html", "head",
-		// and "body" element resolution.
-		this.document = this._getDocument( params.options ) || this.document || this._getDocument( global );
-		if ( !this._isDocument( this.document ) )
-			throw new Error( "Missing Document" );
+	// Used to create elements safely across all browsers.
+	this._dummy = this.document.createElement('div');
+	this._dummyText = this._dummy.innerText != null ? 'innerText' : 'textContent';
 
-		this._indexing = params.options.indexing;
-		if ( typeof this._indexing === 'string' )
-		{
-			if ( !(/^none|new|full$/).test( this._indexing ) )
-				this._indexing = 'none';
-		}
-		else
-		{
-			this._indexing = this._indexing ? 'full' : 'none';
-		}
+	this.e = this.el = this.element = this._parse(data);
+})
+.implementStatic({
 
-		this._indexRefs = !!params.options.indexRefs;
-		this._indexNames = !!params.options.indexNames;
-		this._indexLabels = !!params.options.indexLabels;
-		this._indexClasses = !!params.options.indexClasses;
-
-		this._indexed = false;
-		this.e = this.el = this.element = this._parse( params.data, true );
-		this._indexed = ( this._indexing !== 'none' );
-	}
-	Class.render = function()
-	{
-		return new Class( arguments );
-	};
-
-	Class.prototype.document = null;
-	Class.prototype.defaults = {
-		indexing: 'full',
-		indexRefs: true,
-		indexNames: true,
-		indexLabels: true,
-		indexClasses: false
-	};
-	Class.prototype.shortcuts = {
+	shortcuts: {
 
 		// Input Types
 		text: 'input=text',
@@ -69,550 +49,339 @@
 		image: 'input=image',
 		hidden: 'input=hidden',
 
-			// Prefixed to distinquish them from button elements.
-			ibutton: 'input=button',
-			isubmit: 'input=submit',
-			ireset: 'input=reset',
+		// Prefixed to distinquish them from button elements.
+		ibutton: 'input=button',
+		isubmit: 'input=submit',
+		ireset: 'input=reset',
 
-			// HTML5 Input Types
-			color: 'input=color',
-			date: 'input=date',
-			datetime: 'input=datetime',
-			'datetime-local': 'input=datetime-local',
-			email: 'input=email',
-			month: 'input=month',
-			number: 'input=number',
-			range: 'input=range',
-			search: 'input=search',
-			tel: 'input=tel',
-			time: 'input=time',
-			url: 'input=url',
-			week: 'input=week',
+		// HTML5 Input Types
+		color: 'input=color',
+		date: 'input=date',
+		datetime: 'input=datetime',
+		'datetime-local': 'input=datetime-local',
+		email: 'input=email',
+		month: 'input=month',
+		number: 'input=number',
+		range: 'input=range',
+		search: 'input=search',
+		tel: 'input=tel',
+		time: 'input=time',
+		url: 'input=url',
+		week: 'input=week',
 
 		// Button Types
 		submit: 'button=submit',
 		reset: 'button=reset'
-	};
-	Class.prototype.__params = function()
+	}
+
+})
+.implement({
+
+	// Generate a scaffold data structure from the root element and all its
+	// children.
+	serialize: fn.args({}, function(options)
 	{
-		var params = {},
-			dataIndex = 0,
-			i;
+		return this._serializeElement(options, this.element);
+	}),
 
-		// Shallow copy the default options.
-		params.options = {};
-		for ( i in this.defaults )
-			params.options[i] = this.defaults[i];
-
-		// If the first argument is an options map, then override the default
-		// option values.
-		if ( arguments[0] instanceof Object && !this._isJQuery( arguments[0] ) && !this._isElement( arguments[0] ) && !this._isArray( arguments[0] ) )
-		{
-			++dataIndex;
-
-			var options = arguments[0];
-			for ( i in options )
-			{
-				if ( typeof options[i] !== 'undefined' && options[i] !== null )
-					params.options[i] = options[i];
-			}
-		}
-
-		// Get the rendering data passed as an array or multiple arguments.
-		params.data = arguments[dataIndex];
-		if ( !this._isArray( params.data ) || this._isJQuery( params.data ) )
-			params.data = Array.prototype.slice.call( arguments, dataIndex );
-
-		return params;
-	};
-	Class.prototype.unrender = function( options )
+	// Build an HTML string from the scaffold root element and all its children.
+	stringify: fn.args({}, function(options)
 	{
-		options = options || {};
-
-		return this._serializeElement( options, this.element );
-	};
-	Class.prototype.stringify = function( options )
-	{
-		options = options || {};
-
-		var serialized = this.unrender({
+		var serialized = this.serialize({
 			plainTag: true,
 			forceAttributes: true
 		});
 
-		return this._renderElementString( options, serialized );
-	};
-	Class.prototype.toString = function()
+		return this._renderSerialized(options, serialized);
+	}),
+
+	// Call stringify with default options.
+	toString: function()
 	{
 		return this.stringify();
-	};
-	Class.prototype.index = function( options )
+	},
+
+	// Index the element based on its class, scaffold label, id/scaffold
+	// reference, and name.
+	_indexElement: fn.args(null, {}, function(element, attrs)
 	{
-		options = options || {};
+		if (attrs.hasOwnProperty('class'))
+			this._addClassed(attrs['class'].split(/\s+/g), element);
+		if (attrs.hasOwnProperty('data-serialize-labeled'))
+			this._addLabeled(attrs['data-serialize-labeled'].split(/\s+/g), element);
+		if (attrs.hasOwnProperty('data-serialize-reffed'))
+			this._addReffed(attrs['data-serialize-reffed'], element);
+		if (attrs.hasOwnProperty('id'))
+			this._addReffed(attrs.id, element);
+		if (attrs.hasOwnProperty('name'))
+			this._addNamed(attrs.name, element);
+	}),
 
-		this._resetIndex();
-		this._indexing = 'full';
-
-		if ( typeof options.indexRefs !== 'undefined' && options.indexRefs !== null )
-			this._indexRefs = !!options.indexRefs;
-		if ( typeof options.indexNames !== 'undefined' && options.indexNames !== null )
-			this._indexNames = !!options.indexNames;
-		if ( typeof options.indexLabels !== 'undefined' && options.indexLabels !== null )
-			this._indexLabels = !!options.indexLabels;
-		if ( typeof options.indexClasses !== 'undefined' && options.indexClasses !== null )
-			this._indexClasses = !!options.indexClasses;
-
-		this._indexElement( this.element, true );
-		this._indexed = true;
-
-		return this;
-	};
-	Class.prototype.getIndexing = function()
+	// Generate HTML text from a scaffold data structure.
+	_renderSerialized: function(opts, serial)
 	{
-		return this._indexed ? this._indexing : 'none';
-	};
-	Class.prototype.getIndexRefs = function()
-	{
-		return !!this._indexRefs;
-	};
-	Class.prototype.getIndexNames = function()
-	{
-		return !!this._indexNames;
-	};
-	Class.prototype.getIndexLabels = function()
-	{
-		return !!this._indexLabels;
-	};
-	Class.prototype.getIndexClasses = function()
-	{
-		return !!this._indexClasses;
-	};
-	Class.prototype.setValue = function( name, value )
-	{
-		var i, changed = [];
+		if (typeof serial === 'string')
+			return this._quoteAttr(serial);
 
-		if ( name instanceof Object )
-		{
-			for ( i in name )
-				changed = changed.concat( this.setValue( i, name[i] ) );
-
-			return changed;
-		}
-
-		if ( !this.named[name] || typeof value === 'undefined' )
-			return [];
-
-		var i_max = this.named[name].length,
-			element, nodeName, originalValue, checked;
-
-		for ( i = 0; i < i_max; ++i )
-		{
-			element = this.named[name][i];
-			nodeName = element.nodeName.toLowerCase();
-
-			if ( nodeName === 'input' )
-			{
-				if ( element.type === 'radio' )
-				{
-					checked = ( value !== null && String( value ) === element.value );
-					if ( checked !== element.checked )
-					{
-						element.checked = checked;
-						if ( checked )
-							changed.push( element );
-					}
-
-					continue;
-				}
-				else if ( element.type === 'checkbox' )
-				{
-					checked = !!value;
-					if ( checked !== element.checked )
-					{
-						element.checked = checked;
-						changed.push( element );
-					}
-
-					continue;
-				}
-				else if ( /^button|reset|submit$/.test( element.type ) )
-				{
-					continue;
-				}
-			}
-			else if ( !(/^select|textarea$/).test( nodeName ) )
-			{
-				continue;
-			}
-
-			originalValue = element.value;
-			element.value = String( value );
-
-			if ( element.value !== originalValue )
-				changed.push( element );
-		}
-
-		return changed;
-	};
-	Class.prototype.getValue = function( name )
-	{
-		var value;
-
-		if ( typeof name === 'undefined' )
-		{
-			var values = {};
-			for ( name in this.named )
-			{
-				value = this.getValue( name );
-				if ( value !== null )
-					values[name] = value;
-			}
-
-			return values;
-		}
-
-		if ( !this.named[name] )
-			return null;
-
-		value = null;
-
-		var i = 0,
-			i_max = this.named[name].length,
-			element, nodeName;
-
-		for ( ; i < i_max; ++i )
-		{
-			element = this.named[name][i];
-			if ( !(/^string|number|boolean$/).test( typeof element.value ) )
-				continue;
-
-			nodeName = element.nodeName.toLowerCase();
-
-			if ( nodeName === 'input' )
-			{
-				if ( /^radio|checkbox$/.test( element.type ) )
-				{
-					if ( !element.checked )
-						continue;
-				}
-				else if ( /^button|reset|submit$/.test( element.type ) )
-				{
-					continue;
-				}
-			}
-			else if ( !(/^textarea|select$/).test( nodeName ) )
-			{
-				continue;
-			}
-
-			if ( value instanceof Array )
-				value.push( element.value );
-			else if ( value !== null )
-				value = [ value, element.value ];
-			else
-				value = element.value;
-		}
-
-		return value;
-	};
-	Class.prototype._indexElement = function( element, recursion )
-	{
-		var id = element.id,
-			name = element.name,
-			classes = this._classList( element.className ),
-			ref = typeof element['data-serialize-reffed'] === 'string' ? element['data-serialize-reffed'] : element.getAttribute( 'data-serialize-reffed' ),
-			labels = this._classList( typeof element['data-serialize-labeled'] === 'string' ? element['data-serialize-labeled'] : element.getAttribute( 'data-serialize-labeled' ) );
-
-		if ( id )
-			this._addReffed( id, element );
-		if ( name )
-			this._addNamed( name, element );
-		if ( classes.length > 0 )
-			this._addClassed( classes, element );
-		if ( ref )
-			this._addReffed( ref, element );
-		if ( labels.length > 0 )
-			this._addLabeled( labels, element );
-
-		if ( !recursion )
-			return;
-
-		var i = 0,
-			i_max = element.childNodes.length;
-
-		for ( ; i < i_max; ++i )
-		{
-			if ( element.childNodes[i].nodeType === 1 )
-				this._indexElement( element.childNodes[i], true );
-		}
-	};
-	Class.prototype._resetIndex = function()
-	{
-		if ( !this._indexed )
-			return;
-
-		var i;
-
-		for ( i in this.ref )
-			delete this.ref[i];
-
-		for ( i in this.named )
-			!this.named.hasOwnProperty( i ) || ( this.named[i].length = 0 );
-
-		for ( i in this.labeled )
-			!this.labeled.hasOwnProperty( i ) || ( this.labeled[i].length = 0 );
-
-		for ( i in this.classed )
-			!this.classed.hasOwnProperty( i ) || ( this.classed[i].length = 0 );
-
-		this._indexed = false;
-	};
-	Class.prototype._renderElementString = function( options, serialized )
-	{
-		if ( typeof serialized === 'string' )
-			return this._encodeEntities( serialized );
-
-		var tag = ['<', serialized[0]],
-			attributes = serialized[1],
+		var tag = ['<', serial[0]],
+			attributes = serial[1],
 			i, i_max;
 
-		for ( i in attributes )
+		for (i in attributes)
 		{
-			if ( !attributes.hasOwnProperty( i ) )
+			if (!attributes.hasOwnProperty(i))
 				continue;
 
-			tag.push( ' ', i, '="', this._encodeEntities( attributes[i] ), '"' );
+			tag.push(' ', i, '="', this._quoteAttr(attributes[i]), '"');
 		}
 
-		if ( !this._isVoidTag( serialized[0] ) )
+		if (!this._isVoidTag(serial[0]))
 		{
 			// Non-Void Element
 
-			tag.push( '>' );
+			tag.push('>');
 
-			for ( i = 2, i_max = serialized.length; i < i_max; ++i )
-				tag.push( this._renderElementString( options, serialized[i] ) );
+			for (i = 2, i_max = serial.length; i < i_max; ++i)
+				tag.push(this._renderSerialized(opts, serial[i]));
 
-			tag.push( '</', serialized[0] );
+			tag.push('</', serial[0]);
 		}
-		else if ( options.xhtml )
+		else if (opts.xhtml)
 		{
-			tag.push( '/' );
+			tag.push('/');
 		}
 
-		tag.push( '>' );
+		tag.push('>');
 
-		return tag.join( '' );
-	};
-	Class.prototype._serializeElement = function( options, element, parent )
+		return tag.join('');
+	},
+
+	// Given an element (el), convert it and all its children into a scaffold
+	// data structure.
+	_serializeElement: function(opts, el, parent)
 	{
-		if ( element.nodeType === 3 ) // Text
+		if (this._isTextNode(el))
 		{
-			if ( parent )
-				parent.push( element.nodeValue );
+			if (parent)
+				parent.push(el.nodeValue);
 
-			return element.nodeValue;
+			return el.nodeValue;
 		}
 
-		if ( element.nodeType !== 1 ) // Not Element
-			return false;
+		if (!this._isElement(el))
+			throw new Error("Expecting HTML Node Type 1");
 
-		var serialized = [element.nodeName.toLowerCase()],
-			attributes = this._getAttribute( element ),
+		var serialized = [el.nodeName.toLowerCase()],
+			attributes = this._getAllAttributes(el),
 			count = 0,
 			name;
 
-		for ( name in attributes )
+		for (name in attributes)
 		{
-			if ( !attributes.hasOwnProperty( name  ) )
+			if (!attributes.hasOwnProperty(name))
 				continue;
 
-			if ( attributes[name] === null || attributes[name] === '' )
+			if (attributes[name] === null || attributes[name] === '')
 				delete attributes[name];
 			else
 				++count;
 		}
 
-		if ( !options.plainTag )
+		if (!opts.plainTag)
 		{
-			var modifiers = this._serializeModifiers( attributes );
+			var modifiers = this._serializeModifiers(attributes);
 			count -= modifiers.length;
-			serialized[0] += modifiers.join( '' );
+			serialized[0] += modifiers.join('');
 		}
 
-		if ( count > 0 || options.forceAttributes )
-			serialized.push( attributes );
+		if (count > 0 || opts.forceAttributes)
+			serialized.push(attributes);
 
 		var i = 0,
-			i_max = element.childNodes.length;
+			i_max = el.childNodes.length;
 
-		for ( ; i < i_max; ++i )
-			this._serializeElement( options, element.childNodes[i], serialized );
+		for (; i < i_max; ++i)
+			this._serializeElement(opts, el.childNodes[i], serialized);
 
-		if ( parent )
-			parent.push( serialized );
+		if (parent)
+			parent.push(serialized);
 
 		return serialized;
-	};
-	Class.prototype._serializeModifiers = function( attributes )
-	{
-		var modifiers = [];
+	},
 
-		if ( attributes.hasOwnProperty( 'type' ) && this._addModifier( modifiers, '=', attributes.type ) )
-			delete attributes.type;
-		if ( attributes.hasOwnProperty( 'id' ) && this._addModifier( modifiers, '#', attributes.id ) )
-			delete attributes.id;
-		if ( attributes.hasOwnProperty( 'data-serialize-reffed' ) && this._addModifier( modifiers, '&', attributes['data-serialize-reffed'] ) )
-			delete attributes['data-serialize-reffed'];
-		if ( attributes.hasOwnProperty( 'name' ) && this._addModifier( modifiers, '@', attributes.name ) )
-			delete attributes.name;
-		if ( attributes.hasOwnProperty( 'data-serialize-labeled' ) && this._addModifier( modifiers, ':', attributes['data-serialize-labeled'], true ) )
-			delete attributes['data-serialize-labeled'];
-		if ( attributes.hasOwnProperty( 'class' ) && this._addModifier( modifiers, '.', attributes['class'], true ) )
-			delete attributes['class'];
-
-		return modifiers;
-	};
-	Class.prototype._addModifier = function( modifiers, prefix, value, list )
+	// Turn modifier attributes into an array of modifier strings, removing them
+	// from the source attributes map.
+	_serializeModifiers: function(attrs)
 	{
-		if ( list )
+		var mods = [];
+
+		if (attrs.hasOwnProperty('type') && this._addModifier(mods, '=', attrs.type))
+			delete attrs.type;
+		if (attrs.hasOwnProperty('id') && this._addModifier(mods, '#', attrs.id))
+			delete attrs.id;
+		if (attrs.hasOwnProperty('data-serialize-reffed') && this._addModifier(mods, '&', attrs['data-serialize-reffed']))
+			delete attrs['data-serialize-reffed'];
+		if (attrs.hasOwnProperty('name') && this._addModifier(mods, '@', attrs.name))
+			delete attrs.name;
+		if (attrs.hasOwnProperty('data-serialize-labeled') && this._addModifier(mods, ':', attrs['data-serialize-labeled'], true))
+			delete attrs['data-serialize-labeled'];
+		if (attrs.hasOwnProperty('class') && this._addModifier(mods, '.', attrs['class'], true))
+			delete attrs['class'];
+
+		return mods;
+	},
+
+	// Add modifier strings to the mods array. Each modifier is the prefix (pre)
+	// plus val. If list is true, then val will be split into multiple values
+	// and multiple modifiers will be added to mods.
+	_addModifier: function(mods, pre, val, list)
+	{
+		if (list)
 		{
-			if ( !(/^\s*([^#@&:\/\.\s]+\s*)+$/).test( value ) )
+			if (!(/^\s*([^#@&:\/\.\s]+\s*)+$/).test(val))
 				return false;
 
-			modifiers.push( prefix + value.replace( /^\s+|\s+$/g, '' ).split( /\s+/ ).join( prefix ) );
+			mods.push(pre + val.replace(/^\s+|\s+$/g, '').split(/\s+/).join(pre));
 		}
 		else
 		{
-			if ( !(/^\s*[^#@&:\/\.\s]+\s*$/).test( value ) )
+			if (!(/^\s*[^#@&:\/\.\s]+\s*$/).test(val))
 				return false;
 
-			modifiers.push( prefix + value.replace( /^\s+|\s+$/g, '' ) );
+			mods.push(pre + val.replace(/^\s+|\s+$/g, ''));
 		}
 
 		return true;
-	};
-	Class.prototype._parse = function( data, isRoot )
+	},
+
+	// Recursively turn data into a tree of DOM elements.
+	_parse: function(data, isRoot)
 	{
-		if ( data.length === 0 )
+		if (data.length === 0)
 		{
-			if ( isRoot )
+			if (isRoot)
 				data = ['span', { style: 'display: none;' }];
 			else
 				return null;
 		}
 
-		var element = this._validateElement( data[0] ),
+		var element = this._validateElement(data[0]),
 			i = 1,
 			i_max = data.length,
 			children = [],
-			attributes = {
-				'class': [],
-				'data-serialize-labeled': []
-			},
-			attr;
+			attributes = {},
+			attr, value;
 
-		for ( ; i < i_max; ++i )
+		for (; i < i_max; ++i)
 		{
-			if ( this._isJQuery( data[i] ) )
+			if (this._isJQuery(data[i]))
 			{
-				data[i].each( function()
+				data[i].each(function()
 				{
-					children.push( [this] );
+					children.push([this]);
 				});
 			}
-			else if ( this._isElement( data[i] ) )
+			else if (this._isElement(data[i]))
 			{
-				children.push( [data[i]] );
+				children.push([data[i]]);
 			}
-			else if ( this._isArray( data[i] ) )
+			else if (this._isArrayLike(data[i]))
 			{
-				children.push( data[i] );
+				children.push(data[i]);
 			}
-			else if ( this._isPlainObject( data[i] ) )
+			else if (this._isPlainObject(data[i]))
 			{
-				for ( attr in data[i] )
+				for (attr in data[i])
 				{
-					if ( !data[i].hasOwnProperty( attr ) )
+					if (!data[i].hasOwnProperty(attr))
 						continue;
 
-					if ( /^class|data-serialize-reffed$/.test( attr ) )
+					value = data[i][attr];
+					if (value instanceof Array)
 					{
-						if ( data[i][attr] !== null && typeof data[i][attr] !== 'undefined' )
-							attributes[attr].push( data[i][attr] );
+						if (/^(class|data-serialize-labeled)$/.test(attr))
+							value = value.join(' ');
+						else
+							value = value.join(',');
 					}
-					else
-					{
-						attributes[attr] = data[i][attr];
-					}
+
+					attributes[attr] = value;
 				}
 			}
-			else if ( data[i] !== null && typeof data[i] !== 'undefined' )
+			else if (data[i] != null)
 			{
-				children.push( String( data[i] ) );
+				children.push(''+data[i]);
 			}
 		}
 
-		if ( element instanceof Array )
-			element = this._createElement( element, attributes );
+		if (element instanceof Array)
+			element = this._createElement(element, attributes);
 		else
-			element = this._existingElement( element, attributes );
+			element = this._existingElement(element, attributes);
 
 		var child;
-		for ( i = 0, i_max = children.length; i < i_max; ++i )
+		for (i = 0, i_max = children.length; i < i_max; ++i)
 		{
 			child = children[i];
 
-			if ( typeof child === 'string' && child )
+			if (typeof child === 'string' && child)
 			{
-				element.inner.appendChild( this.document.createTextNode( child ) );
+				this._dummy[this._dummyText] = [child];
+				element.inner.appendChild(this._dummy.childNodes[0]);
 			}
 			else
 			{
-				child = this._parse( children[i] );
-				if ( child )
-					element.inner.appendChild( child );
+				child = this._parse(children[i]);
+				if (child)
+					element.inner.appendChild(child);
 			}
 		}
 
 		return element.outer;
-	};
-	Class.prototype._validateElement = function( element )
-	{
-		if ( typeof element === 'string' )
-			return this._validateElementString( element );
+	},
 
-		if ( this._isJQuery( element ) )
-			element = element.get( 0 ) || false;
-		else if ( !this._isElement( element ) )
+	// Make sure element is a valid tag string, element instance, or jQuery
+	// object. If it's a tag string, parse it into tagName and modifiers
+	// strings. If it's a jQuery object, extract the first element instance.
+	_validateElement: function(element)
+	{
+		if (typeof element === 'string')
+			return this._validateElementString(element);
+
+		if (this._isJQuery(element))
+			element = element.get(0) || false;
+		else if (!this._isElement(element))
 			element = false;
 
-		if ( !element )
-			throw new Error( "Expecting String or DOM Element" );
+		if (!element)
+			throw new Error("Expecting String or DOM Element");
 
 		return element;
-	};
-	Class.prototype._validateElementString = function( str, isShortcut )
+	},
+
+	// Make sure str represents a valid tagName, possibly containing modifiers.
+	// Split the str into a tagName string and a modifiers string.
+	_validateElementString: function(str, isShortcut)
 	{
-		var strings = str.replace( /^\s+/, '' ).split( /\s(?![^a-z0-9]|\s|$)/ ),
+		var strings = str.replace(/^\s+/, '').split(/\s(?![^a-z0-9]|\s|$)/),
 			i = 0,
 			i_max = strings.length,
 			descriptions = [],
 			matches,
 			resolved;
 
-		for ( ; i < i_max; ++i )
+		for (; i < i_max; ++i)
 		{
-			matches = strings[i].match( /^\s*([a-z0-9]+)\s*((?:[#@&:=\.][^#@&:=\.]+\s*)*)$/i );
-			if ( matches === null )
-				throw new Error( "Invalid Element String" );
+			matches = strings[i].match(/^\s*([a-z0-9]+)\s*((?:[#@&:=\.][^#@&:=\.]+\s*)*)$/i);
+			if (matches === null)
+				throw new Error("Invalid Element String");
 
-			if ( !isShortcut && this.shortcuts.hasOwnProperty( matches[1] ) )
+			if (!isShortcut && Scaffold.shortcuts.hasOwnProperty(matches[1]))
 			{
-				resolved = this._validateElementString( this.shortcuts[matches[1]], true );
+				resolved = this._validateElementString(Scaffold.shortcuts[matches[1]], true);
 				resolved[resolved.length - 1].modifiers += matches[2];
 
-				descriptions = descriptions.concat( resolved );
+				descriptions = descriptions.concat(resolved);
 
 				continue;
 			}
@@ -624,57 +393,134 @@
 		}
 
 		return descriptions;
-	};
-	Class.prototype._createElement = function( elements, attributes )
-	{
-		var attrs = elements.length === 1 ? attributes : {
-				'class': [],
-				'data-serialize-labeled': []
-			},
-			value;
+	},
 
-		if ( elements[0].modifiers )
+	// Escape HTML special characters: & ' " < > \r\n \r \n
+	//
+	// After escaping the string should be safe to insert into HTML without
+	// modifying the HTML structure.
+	_quoteAttr: function(str)
+	{
+		return (''+str)
+			.replace(/&/g, '&amp;')
+			.replace(/'/g, '&apos;')
+			.replace(/"/g, '&quot;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/\r\n/g, '&#13;')
+			.replace(/[\r\n]/g, '&#13;');
+	},
+
+	// Create a set of nested element instances based on the elements array. The
+	// attributes (lastAttrs) will be applied to the last element in the
+	// elements array.
+	_createElement: function(elements, lastAttrs)
+	{
+		// If this is the last element, then attributes. Otherwise start with a
+		// blank attributes map and only use attributes coming from tag
+		// modifiers.
+		var attrs = (elements.length === 1) ? lastAttrs : {};
+
+		if (elements[0].modifiers)
 		{
-			var modifiers = elements[0].modifiers.match( /[#@&:=\.][^#@&:=\.]+/g ),
+			var modifiers = elements[0].modifiers.match(/[#@&:=\.][^#@&:=\.]+/g),
 				i = 0,
 				i_max = modifiers.length,
-				prefix;
+				prefix, value;
 
-			for ( i = 0; i < i_max; ++i )
+			for (i = 0; i < i_max; ++i)
 			{
 				prefix = modifiers[i].charAt(0);
-				value = modifiers[i].substr( 1 ).replace( /\s+$/, '' );
+				value = modifiers[i].substr(1).replace(/\s+$/, '');
 
-				if ( prefix === '#' )
+				if (prefix === '#')
 					attrs.id = value;
-				else if ( prefix === '&' )
+				else if (prefix === '&')
 					attrs['data-serialize-reffed'] = value;
-				else if ( prefix === '.' )
-					attrs['class'].push( value );
-				else if ( prefix === ':' )
-					attrs['data-serialize-labeled'].push( value );
-				else if ( prefix === '=' )
+				else if (prefix === '.')
+					attrs['class'] = attrs['class'] ? attrs['class'] + ' ' + value : value;
+				else if (prefix === ':')
+					attrs['data-serialize-labeled'] = attrs['data-serialize-labeled'] ? attrs['data-serialize-labeled'] + ' ' + value : value;
+				else if (prefix === '=')
 					attrs.type = value;
-				else if ( prefix === '@' )
+				else if (prefix === '@')
 					attrs.name = value;
 			}
 		}
 
-		var element = this._reservedTag( elements[0].tagName );
+		var tagName = elements[0].tagName.toLowerCase(),
+			element = this._reservedTag(tagName);
 
-		if ( !element )
-			element = this.document.createElement( elements[0].tagName );
+		if (!element)
+		{
+			// IE HAX!
+			// * IE decides to reset the value property when the type property
+			//   is set, so it has to be set first.
+			// * IE7 does not correctly update the name property so the element
+			//   must be created with the name property in place using
+			//   innerHTML.
+			// * IE7 does not always set the checked, disabled, and readonly
+			//   properties, so create them as attributes on the new node.
 
-		this._setAttribute( element, attrs );
-		if ( this._indexing !== 'none' )
-			this._indexElement( element, false );
+			var tag = '<' + tagName;
 
-		if ( elements.length > 1 )
+			if (attrs.hasOwnProperty('type'))
+				tag += ' type="' + this._quoteAttr(attrs.type) + '"';
+			if (attrs.hasOwnProperty('name'))
+				tag += ' name="' + this._quoteAttr(attrs.name) + '"';
+			if (attrs.hasOwnProperty('checked') && attrs.checked)
+				tag += ' checked="checked"';
+			if (attrs.hasOwnProperty('disabled') && attrs.disabled)
+				tag += ' disabled="disabled"';
+			if (attrs.hasOwnProperty('readonly') && attrs.readonly)
+				tag += ' readonly="readonly"';
+			tag += ' />';
+
+			// Certain elements will not be created using the innerHTML method
+			// unless they are created inside an appropriate parent hierarchy.
+			var index = 0;
+			switch (tagName)
+			{
+				case 'option':
+					tag = '<select><option></option>' + tag + '</select>';
+					index = 1;
+					break;
+				case 'li':
+					tag = '<ul>' + tag + '</ul>';
+					break;
+				case 'thead':
+				case 'tfoot':
+				case 'tbody':
+					tag = '<table>' + tag + '</table>';
+					break;
+				case 'tr':
+					tag = '<table><tbody>' + tag + '</tbody></table>';
+					break;
+				case 'td':
+				case 'th':
+					tag = '<table><tbody><tr>' + tag + '</tr></tbody></table>';
+			}
+
+			this._dummy.innerHTML = tag;
+			element = this._dummy.getElementsByTagName(tagName)[index];
+
+			this._indexElement(element, attrs);
+
+			delete attrs.type;
+			delete attrs.name;
+			delete attrs.checked;
+			delete attrs.disabled;
+			delete attrs.readonly;
+		}
+
+		this._setAttribute(element, attrs);
+
+		if (elements.length > 1)
 		{
 			elements.shift();
-			var child = this._createElement( elements, attributes );
+			var child = this._createElement(elements, lastAttrs);
 
-			element.appendChild( child.outer );
+			element.appendChild(child.outer);
 
 			return {
 				outer: element,
@@ -686,219 +532,233 @@
 			outer: element,
 			inner: element
 		};
-	};
-	Class.prototype._existingElement = function( element, attributes )
-	{
-		if ( this._indexing === 'new' )
-			this._indexElement( element, false );
-		else if ( this._indexing === 'full' )
-			this._indexElement( element, true );
+	},
 
-		this._setAttribute( element, attributes );
+	// Apply attributes to an existing element.
+	_existingElement: function(element, attributes)
+	{
+		this._setAttribute(element, attributes);
 
 		return {
 			inner: element,
 			outer: element
 		};
-	};
-	Class.prototype._setAttribute = function( element, name, value )
+	},
+
+	// Set an attribute, or a map of attributes on an element. If the attribute
+	// should actually be a property, then this should set the property instead
+	// of calling the native setAttribute method.
+	_setAttribute: function(element, name, value)
 	{
-		if ( this._isPlainObject( name ) )
+		if (this._isPlainObject(name))
 		{
 			var i, changed = false;
-			for ( i in name )
+			for (i in name)
 			{
-				if ( name.hasOwnProperty( i ) )
-					changed = this._setAttribute( element, i, name[i] ) || changed;
+				if (name.hasOwnProperty(i))
+					changed = this._setAttribute(element, i, name[i]) || changed;
 			}
 
 			return changed;
 		}
 
-		name = name.replace( /(^\s+|\s$)/g, '' ).toLowerCase();
-		if ( !name )
-			throw new Error( "Expected Attribute Name" );
+		name = name.replace(/(^\s+|\s$)/g, '').toLowerCase();
+		if (!name)
+			throw new Error("Expected Attribute Name");
 
-		if ( name === 'class' )
-			element.className = this._combineAttributes( element.className, value );
-		else if ( name === 'style' )
-			element.style.cssText = this._combineAttributes( element.style.cssText, value, true );
-		else if ( name === 'readonly' )
-			element.readOnly = !!value;
-		else if ( /^checked|disabled$/.test( name ) )
-			element[name] = !!value;
-		else if ( /^id|name|type|value|title/.test( name ) )
-			element[name] = value;
-		else if ( value === null || typeof value === 'undefined' )
-			element.removeAttribute( name );
-		else
+		if (name === 'style')
 		{
-			if ( name === 'data-serialize-labeled' )
-				value = this._combineAttributes( element.getAttribute( 'data-serialize-labeled' ), value );
-
-			element.setAttribute( name, String( value ) );
-		}
-	};
-	Class.prototype._getAttribute = function( element, name )
-	{
-		if ( typeof name === 'undefined' )
-		{
-			var attributes = {},
-				i = 0,
-				i_max = element.attributes.length;
-
-			for ( ; i < i_max; ++i )
-				attributes[element.attributes[i].nodeName] = element.attributes[i].nodeValue;
-
-			var properties = ['class', 'style', 'readonly', 'checked', 'disabled', 'id', 'name', 'type', 'value', 'title'],
-				value;
-
-			i = properties.length;
-			while ( i-- )
+			if (value)
 			{
-				value = this._getAttribute( element, properties[i] );
-				if ( value !== null )
-					attributes[properties[i]] = value;
+				if (element.style.cssText)
+					element.style.cssText += ' ' + value;
+				else
+					element.style.cssText = ''+value;
 			}
-
-			return attributes;
 		}
-
-		name = name.replace( /(^\s+|\s$)/g, '' ).toLowerCase();
-		if ( !name )
-			throw new Error( "Expected Attribute Name" );
-
-		if ( name === 'class' )
-			return element.className;
-		else if ( name === 'style' )
-			return element.style.cssText;
-		else if ( name === 'readonly' )
-			return element.readOnly ? 'readonly' : null;
-		else if ( /^checked|disabled$/.test( name ) )
-			return element[name] ? name : null;
-		else if ( /^id|name|type|value|title$/.test( name ) )
-			return ( typeof element[name] === 'undefined' ? null : element[name] );
-		else
-			return element.getAttribute( name );
-	};
-	Class.prototype._combineAttributes = function( current, added, isStyle )
-	{
-		if ( current === null || typeof current === 'undefined' )
-			current = '';
-		else if ( typeof current !== 'string' )
-			current = String( current );
-
-		if ( added === null || typeof added === 'undefined' )
-			return null;
-
-		if ( this._isArray( added ) )
+		else if (name === 'class')
 		{
-			if ( isStyle )
-				added = Array.prototype.join.call( added, '; ' );
+			if (value)
+			{
+				if (element.className)
+					element.className += ' ' + value;
+				else
+					element.className = ''+value;
+			}
+		}
+		else if (name === 'data-serialize-labeled')
+		{
+			if (value)
+			{
+				void function(current, value, name, element)
+				{
+					if (current)
+						element.setAttribute(name, current + ' ' + value);
+					else
+						element.setAttribute(name, ''+value);
+				}
+				(element.getAttribute('data-serialize-labeled'), value, name, element);
+			}
+		}
+		else if (name === 'readonly')
+		{
+			element.readOnly = !!value;
+		}
+		else if (/^(checked|disabled)$/.test(name))
+		{
+			element[name] = !!value;
+		}
+		else
+		{
+			try
+			{
+				if (!(/^(undefined|unknown)$/).test(typeof element[name]))
+				{
+					// Setting a property, not an attribute.
+					element[name] = value;
+					return;
+				}
+			}
+			catch (e) {}
+
+			if (typeof value === 'boolean')
+				value = value ? name : null;
+
+			try
+			{
+				if (value == null)
+					element.removeAttribute(name);
+				else
+					element.setAttribute(name, ''+value);
+			}
+			catch (e) {}
+		}
+	},
+
+	// Get all attributes and properties which can be initialized via attribute.
+	// The intent is to get attributes/properties relevent for DOM branch
+	// serialization.
+	_getAllAttributes: function(element)
+	{
+		var attributes = {},
+			i = 0,
+			i_max = element.attributes.length;
+
+		for (; i < i_max; ++i)
+			attributes[element.attributes[i].nodeName] = element.attributes[i].nodeValue;
+
+		var properties = ['class', 'style', 'readonly', 'checked', 'disabled', 'id', 'name', 'type', 'value', 'title'],
+			value;
+
+		i = properties.length;
+		while (i--)
+		{
+			value = this._getAttribute(element, properties[i]);
+			if (value)
+				attributes[properties[i]] = value === true ? properties[i] : value;
 			else
-				added = Array.prototype.join.call( added, ' ' );
-		}
-		else if ( typeof added !== 'string' )
-		{
-			added = String( added );
+				delete attributes[properties[i]];
 		}
 
-		if ( !isStyle )
-			added = added.replace( /^\s+|\s+$/g, '' ).replace( /\s+/g, ' ' );
+		return attributes;
+	},
 
-		if ( !added )
-			return current;
-		else if ( current )
-			return current + ' ' + added;
+	// The inverse of _setAttribute. Get an attribute unless the attribute name
+	// should refer to a property, in which case get the property value.
+	_getAttribute: function(element, name)
+	{
+		name = name.replace(/(^\s+|\s$)/g, '').toLowerCase();
+		if (!name)
+			throw new Error("Expected Attribute Name");
+
+		if (name === 'class')
+			return element.className;
+		else if (name === 'style')
+			return element.style.cssText;
+		else if (name === 'readonly')
+			return element.readOnly;
 		else
-			return added;
-	};
-	Class.prototype._addReffed = function( id, element )
-	{
-		if ( this._indexing === 'none' || !this._indexRefs )
-			return;
+		{
+			try
+			{
+				if (!(/^(undefined|unknown)$/).test(typeof element[name]))
+				{
+					// Getting a property, not an attribute.
+					return element[name];
+				}
+			}
+			catch (e) {}
 
+			return element.getAttribute(name);
+		}
+	},
+
+	_addReffed: function(id, element)
+	{
+		id = ''+id;
 		this.ref[id] = element;
-	};
-	Class.prototype._addNamed = function( name, element )
-	{
-		if ( this._indexing === 'none' || !this._indexNames )
-			return;
+	},
 
-		if ( !this.named.hasOwnProperty( name ) )
+	_addNamed: function(name, element)
+	{
+		name = ''+name;
+
+		if (!this.named.hasOwnProperty(name))
 			this.named[name] = [];
 
-		this.named[name].push( element );
-	};
-	Class.prototype._addLabeled = function( label, element )
-	{
-		if ( this._indexing === 'none' || !this._indexLabels )
-			return;
+		this.named[name].push(element);
+	},
 
-		if ( this._isArray( label ) )
+	_addLabeled: function(label, element)
+	{
+		if (this._isArrayLike(label))
 		{
 			var i = 0,
 				i_max = label.length;
 
-			for ( ; i < i_max; ++i )
-				this._addLabeled( label[i], element );
+			for (; i < i_max; ++i)
+				this._addLabeled(label[i], element);
 
 			return;
 		}
 
-		if ( !this.labeled.hasOwnProperty( label ) )
+		label = ''+label;
+
+		if (!this.labeled.hasOwnProperty(label))
 			this.labeled[label] = [];
 
-		this.labeled[label].push( element );
-	};
-	Class.prototype._addClassed = function( className, element )
-	{
-		if ( this._indexing === 'none' || !this._indexClasses )
-			return;
+		this.labeled[label].push(element);
+	},
 
-		if ( this._isArray( className ) )
+	_addClassed: function(className, element)
+	{
+		if (this._isArrayLike(className))
 		{
 			var i = 0,
 				i_max = className.length;
 
-			for ( ; i < i_max; ++i )
-				this._addClassed( className[i], element );
+			for (; i < i_max; ++i)
+				this._addClassed(className[i], element);
 
 			return;
 		}
 
-		if ( !this.classed.hasOwnProperty( className ) )
+		className = ''+className;
+
+		if (!this.classed.hasOwnProperty(className))
 			this.classed[className] = [];
 
-		this.classed[className].push( element );
-	};
-	Class.prototype._classList = function( values )
-	{
-		if ( values === null || typeof values === 'undefined' )
-			return [];
+		this.classed[className].push(element);
+	},
 
-		if ( this._isArray( values ) )
-			values = Array.prototype.join.call( values, ' ' );
-		else if ( typeof values !== 'string' )
-			values = String( values );
+	_isVoidTag: function(tag)
+	{
+		return (/^(area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr)$/).test(tag);
+	},
 
-		values = values.replace( /^\s+|\s+$/g, '' );
-		if ( !values )
-			return [];
-
-		return values.split( /\s+/ );
-	};
-	Class.prototype._encodeEntities = function( str )
+	_reservedTag: function(tag)
 	{
-		return str.replace( /&/g, '&amp;' ).replace( /</g, '&lt;' ).replace( />/g, '&gt;' ).replace( /"/g, '&quot;' ).replace( /'/g, '&apos;' );
-	};
-	Class.prototype._isVoidTag = function( tag )
-	{
-		return (/^area|base|br|col|command|embed|hr|img|input|keygen|link|meta|param|source|track|wbr$/).test( tag );
-	};
-	Class.prototype._reservedTag = function( tag )
-	{
-		switch ( tag )
+		switch (tag)
 		{
 			case 'html':
 				return this.document.documentElement || null;
@@ -909,43 +769,45 @@
 		}
 
 		return null;
-	};
-	Class.prototype._getDocument = function( source )
-	{
-		return ( source instanceof Object && typeof source.document === 'object' && source.document.nodeType === 9 ) ? source.document : null;
-	};
-	Class.prototype._isPlainObject = function( test )
-	{
-		return ( test instanceof Object && test.constructor === Object );
-	};
-	Class.prototype._isArray = function( test )
-	{
-		return ( test instanceof Object && test.splice instanceof Function && test.hasOwnProperty( 'length' ) && typeof test.length === 'number' );
-	};
-	Class.prototype._isElement = function( test )
-	{
-		return ( typeof test === "object" && test.nodeType === 1 );
-	};
-	Class.prototype._isDocument = function( test )
-	{
-		return ( typeof test === "object" && test.nodeType === 9 );
-	};
-	Class.prototype._isJQuery = function( test )
-	{
-		return typeof jQuery !== 'undefined' && test instanceof jQuery;
-	};
+	},
 
-	if ( typeof module !== 'undefined' && module instanceof Object )
+	_isPlainObject: function(test)
 	{
-		// CommonJS
-		module.exports = Class;
-	}
-	else
-	{
-		// Non-Modular
-		global.DOMaker = Class;
-		if ( typeof global.D === 'undefined' )
-			global.D = global.DOMaker;
-	}
+		return (test != null && typeof test === 'object' && test.constructor === Object);
+	},
 
-}( this ));
+	_isArrayLike: function(test)
+	{
+		return (test != null && typeof test === 'object' && typeof test.splice === 'function' && test.hasOwnProperty('length') && typeof test.length === 'number');
+	},
+
+	_isNode: function(test, nodeType)
+	{
+		return test != null && typeof test === 'object' && typeof test.nodeType === 'number' && (nodeType == null || test.nodeType === nodeType);
+	},
+
+	_isElement: function(test)
+	{
+		return this._isNode(test, 1);
+	},
+
+	_isTextNode: function(test)
+	{
+		return this._isNode(test, 3);
+	},
+
+	_isDocument: function(test)
+	{
+		return this._isNode(test, 9);
+	},
+
+	_isJQuery: function(test)
+	{
+		return typeof jQuery === 'function' && test instanceof jQuery;
+	}
+});
+
+/// export Scaffold
+/// target none
+	module.exports = Scaffold;
+/// target
